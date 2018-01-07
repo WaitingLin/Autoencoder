@@ -1,9 +1,7 @@
 # Autoencoder
 Dataset: fashion mnist
 
-Run: python3 autoencoder.py type
+Run: python3 autoencoder.py 'type'
 
 type:
-  0 -> simple 
-  1 -> deep
-  
+  simple is 0, deep is 1
