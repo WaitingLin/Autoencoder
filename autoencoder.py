@@ -9,16 +9,16 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt 
 import numpy as np
 
-def simple_dnn_model(encoding_dim):
+def simple_dnn_model():
     input_img = Input(shape=(784,))
-    encoded = Dense(encoding_dim, activation='relu')(input_img)
+    encoded = Dense(32, activation='relu')(input_img)
     decoded = Dense(784, activation='sigmoid')(encoded)
     # autoencoder
     autoencoder = Model(input_img, decoded)
     # encoder
     encoder = Model(input_img, encoded)
     # decoder
-    encoded_input = Input(shape=(encoding_dim,))
+    encoded_input = Input(shape=(32,))
     decoder_layer = autoencoder.layers[-1]
     decoder = Model(encoded_input, decoder_layer(encoded_input))
     decoder.summary()
@@ -26,11 +26,11 @@ def simple_dnn_model(encoding_dim):
     autoencoder.compile(optimizer='adadelta', loss='binary_crossentropy')
     return autoencoder, encoder, decoder
 
-def deep_dnn_model(encoding_dim):
+def deep_dnn_model():
     input_img = Input(shape=(784,))
     encoded = Dense(128, activation='relu')(input_img)
     encoded = Dense(64, activation='relu')(encoded)
-    encoded = Dense(encoding_dim, activation='relu')(encoded)
+    encoded = Dense(32, activation='relu')(encoded)
     
     decoded = Dense(64, activation='relu')(encoded)
     decoded = Dense(128, activation='relu')(decoded)
@@ -41,42 +41,47 @@ def deep_dnn_model(encoding_dim):
     # encoder
     encoder = Model(input_img, encoded)
     # decoder
-    #encoded_input = Input(shape=(encoding_dim,))
-    #decoded = autoencoder.layers[-3](encoded_input)
-    #decoder = Model(encoded_input, decoded_output)
-    #decoder.summary()
-    decoder =  encoder  
-    
+    encoded_input = Input(shape=(32,))
+    deco = autoencoder.layers[-3](encoded_input)
+    deco = autoencoder.layers[-2](deco)
+    deco = autoencoder.layers[-1](deco)
+    decoder = Model(encoded_input, deco)
+
     autoencoder.compile(optimizer='adadelta', loss='binary_crossentropy')
     return autoencoder, encoder, decoder
 
-def convolution_model(encoding_dim):
+def convolution_model():
     input_img = Input(shape=(28,28,1))    
     
     encoded = Conv2D(16, (3,3), activation='relu', padding='same')(input_img)
     encoded = MaxPooling2D((2,2), padding='same')(encoded)
     encoded = Conv2D(8, (3,3), activation='relu', padding='same')(encoded)
     encoded = MaxPooling2D((2,2), padding='same')(encoded)
-    #encoded = Conv2D(8, (3,3), activation='relu', padding='same')(encoded)
-    #encoded = MaxPooling2D((2,2), padding='same')(encoded)
 
     decoded = Conv2D(8, (3,3), activation='relu', padding='same')(encoded)
     decoded = UpSampling2D((2,2))(decoded)
-    #decoded = Conv2D(8, (3,3), activation='relu', padding='same')(decoded)
-    #decoded = UpSampling2D((2,2))(decoded)
     decoded = Conv2D(16, (3,3), activation='relu', padding='same')(decoded)
     decoded = UpSampling2D((2,2))(decoded)
     decoded = Conv2D(1, (3,3), activation='relu', padding='same')(decoded)
 
+    # autoenocder
     autoencoder = Model(input_img, decoded)
+    # enocder
     encoder = Model(input_img, encoded)
-    decoder = encoder
+    # decoder
+    encoded_input = Input(shape=(7,7,8))
+    deco = autoencoder.layers[-5](encoded_input)
+    deco = autoencoder.layers[-4](deco)
+    deco = autoencoder.layers[-3](deco)
+    deco = autoencoder.layers[-2](deco)
+    deco = autoencoder.layers[-1](deco)
+    decoder = Model(encoded_input, deco)
 
     autoencoder.compile(optimizer='adadelta', loss='binary_crossentropy')
     return autoencoder, encoder, decoder
 
 
-def autoencoder(model_type, path, encoding_dim):
+def autoencoder(model_type, path):
     f_mnist = scipy.io.loadmat(path)
     
     x_train, y_train = f_mnist['X_train'], f_mnist['y_train']
@@ -88,19 +93,19 @@ def autoencoder(model_type, path, encoding_dim):
     print('y_train:',y_train.shape, 'y_test:', y_test.shape)
 
     if model_type == '0':
-        autoencoder, encoder, decoder = simple_dnn_model(encoding_dim)
+        autoencoder, encoder, decoder = simple_dnn_model()
         save_path = 'simple_dnn.png'
         model_name = 'simple_dnn_model.h5'
         log_dir = './simple_dnn_board'
         x_train, x_test = x_train.reshape(-1, 784), x_test.reshape(-1, 784)
     elif model_type == '1':
-        autoencoder, encoder, decoder = deep_dnn_model(encoding_dim)
+        autoencoder, encoder, decoder = deep_dnn_model()
         save_path = 'deep_dnn.png'
         model_name = 'deep_dnn_model.h5'
         log_dir = './deep_dnn_board'
         x_train, x_test = x_train.reshape(-1, 784), x_test.reshape(-1, 784)
     elif model_type == '2':
-        autoencoder, encoder, decoder = convolution_model(encoding_dim)
+        autoencoder, encoder, decoder = convolution_model()
         save_path = 'convolutional.png'
         model_name = 'convolutional_model.h5'
         log_dir = './convolutional_board'
@@ -120,17 +125,16 @@ def autoencoder(model_type, path, encoding_dim):
     #decoder_img = decoder.predict(encoder_img)
     img = autoencoder.predict(x_test)
 
-    n = 10  # how many digits we will display
+    # plot
+    n = 10 
     plt.figure(figsize=(20, 4))
     for i in range(n):
-        # display original
         ax = plt.subplot(2, n, i + 1)
         plt.imshow(x_test[i].reshape(28, 28))
         plt.gray()
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
 
-        # display reconstruction
         ax = plt.subplot(2, n, i + 1 + n)
         plt.imshow(img[i].reshape(28, 28))
         plt.gray()
@@ -147,5 +151,5 @@ def autoencoder(model_type, path, encoding_dim):
     return
 
 if __name__ == '__main__':
-    autoencoder(model_type=sys.argv[1], path='./fashion_mnist_dataset.mat', encoding_dim=32)
+    autoencoder(model_type=sys.argv[1], path='./fashion_mnist_dataset.mat')
 
