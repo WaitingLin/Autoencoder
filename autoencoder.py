@@ -50,6 +50,32 @@ def deep_dnn_model(encoding_dim):
     autoencoder.compile(optimizer='adadelta', loss='binary_crossentropy')
     return autoencoder, encoder, decoder
 
+def convolution_model(encoding_dim):
+    input_img = Input(shape=(28,28,1))    
+    
+    encoded = Conv2D(16, (3,3), activation='relu', padding='same')(input_img)
+    encoded = MaxPooling2D((2,2), padding='same')(encoded)
+    encoded = Conv2D(8, (3,3), activation='relu', padding='same')(encoded)
+    encoded = MaxPooling2D((2,2), padding='same')(encoded)
+    #encoded = Conv2D(8, (3,3), activation='relu', padding='same')(encoded)
+    #encoded = MaxPooling2D((2,2), padding='same')(encoded)
+
+    decoded = Conv2D(8, (3,3), activation='relu', padding='same')(encoded)
+    decoded = UpSampling2D((2,2))(decoded)
+    #decoded = Conv2D(8, (3,3), activation='relu', padding='same')(decoded)
+    #decoded = UpSampling2D((2,2))(decoded)
+    decoded = Conv2D(16, (3,3), activation='relu', padding='same')(decoded)
+    decoded = UpSampling2D((2,2))(decoded)
+    decoded = Conv2D(1, (3,3), activation='relu', padding='same')(decoded)
+
+    autoencoder = Model(input_img, decoded)
+    encoder = Model(input_img, encoded)
+    decoder = encoder
+
+    autoencoder.compile(optimizer='adadelta', loss='binary_crossentropy')
+    return autoencoder, encoder, decoder
+
+
 def autoencoder(model_type, path, encoding_dim):
     f_mnist = scipy.io.loadmat(path)
     
@@ -57,7 +83,6 @@ def autoencoder(model_type, path, encoding_dim):
     x_test, y_test = f_mnist['X_test'], f_mnist['y_test']
 
     x_train, x_test = x_train.astype('float32') / 255. , x_test.astype('float32') / 255.
-    x_train, x_test = x_train.reshape(-1, 784), x_test.reshape(-1, 784)
 
     print('x_train:',x_train.shape, 'x_test:', x_test.shape)
     print('y_train:',y_train.shape, 'y_test:', y_test.shape)
@@ -66,14 +91,26 @@ def autoencoder(model_type, path, encoding_dim):
         autoencoder, encoder, decoder = simple_dnn_model(encoding_dim)
         save_path = 'simple_dnn.png'
         model_name = 'simple_dnn_model.h5'
+        log_dir = './simple_dnn_board'
+        x_train, x_test = x_train.reshape(-1, 784), x_test.reshape(-1, 784)
     elif model_type == '1':
         autoencoder, encoder, decoder = deep_dnn_model(encoding_dim)
         save_path = 'deep_dnn.png'
         model_name = 'deep_dnn_model.h5'
-
-    earlystopping = EarlyStopping(monitor='val_loss', patience=3, verbose=1, mode='min')
-    autoencoder.fit(x_train, x_train, epochs=100, batch_size=256, 
-                    callbacks=[earlystopping, TensorBoard(log_dir='./board/')],
+        log_dir = './deep_dnn_board'
+        x_train, x_test = x_train.reshape(-1, 784), x_test.reshape(-1, 784)
+    elif model_type == '2':
+        autoencoder, encoder, decoder = convolution_model(encoding_dim)
+        save_path = 'convolutional.png'
+        model_name = 'convolutional_model.h5'
+        log_dir = './convolutional_board'
+        x_train, x_test = np.reshape(x_train, (len(x_train), 28, 28, 1)), np.reshape(x_test, (len(x_test), 28, 28, 1))
+    else:
+        print(' = =? ')
+    #earlystopping = EarlyStopping(monitor='loss', patience=1, verbose=1, mode='min')
+    autoencoder.summary()
+    autoencoder.fit(x_train, x_train, epochs=500, batch_size=128, 
+                    callbacks=[TensorBoard(log_dir=log_dir)],
                     shuffle=True, validation_data=(x_test, x_test))
 
     autoencoder.save(model_name)
