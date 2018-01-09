@@ -6,4 +6,4 @@
     python3 autoencoder.py 'type'
 
 type:
-  simple is 0, deep is 1
+  0: simple autoencoder, 1: deep autoencoder, 2: convolutional autoencoder
